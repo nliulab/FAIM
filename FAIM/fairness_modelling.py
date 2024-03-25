@@ -61,7 +61,7 @@ class FAIMGenerator(FairBase):
             self.post_method = post_method
             # self.rw_model, self.rw_results, self.rw_weights = self.prost_mitigate()
             
-        self.optim_obj = self.optimal_model(selected_vars, selected_vars_cat)
+        self.optim_obj = self.optimal_model(selected_vars, selected_vars_cat, outcome_type="binary")
         self.optim_results = self.optim_obj.model_optim
         self.optim_model =  self.optim_obj.model_optim.model
         
@@ -201,8 +201,15 @@ class FAIMGenerator(FairBase):
         if self.criterion == "auc":
             auc_ori = roc_auc_score(y_expl, pred_ori)
             auc_base = roc_auc_score(y_expl, pred_base)
-            
-            return auc_base > auc_ori * (1-np.sqrt(self.epsilon))
+
+            # return auc_base > auc_ori * (1-np.sqrt(self.epsilon))
+            return auc_base > auc_ori * np.sqrt(1-self.epsilon)
+        if self.criterion == "loss":
+            loss_ori = self.optim_model.loglike(self.optim_results.params)
+            loss_base = optim_base_results.model.loglike(optim_base_results.params)
+            ratio = loss_base / loss_ori
+            print(f"loss_ori: {loss_ori}, loss_base: {loss_base}, ratio: {ratio}")
+            return ratio < np.sqrt(1+self.epsilon)
             
     def FAIM_model(self, dat_expl):
         """FAIM: Generate the nearly optimal models and compute the fairness metrics of the nearly optimal models
@@ -232,7 +239,11 @@ class FAIMGenerator(FairBase):
                 if self.compare(dat_expl, optim_base_results, selected_vars, selected_vars_cat):
                     self.optim_base_obj_list["_".join(x)] = optim_base_obj
                     
-                    epsilon = 1 - np.sqrt(1 - self.epsilon)
+                    if self.criterion == "auc":
+                        epsilon = 1 - np.sqrt(1 - self.epsilon)
+                    elif self.criterion == "loss":
+                        epsilon = np.sqrt(1 + self.epsilon) - 1
+                        
                     coefs, plots = self.nearly_optimal_model(optim_base_obj, n_final=self.n_final, epsilon=epsilon)
                     self.coefs["_".join(x)] = coefs
                     self.plots["_".join(x)] = plots
@@ -343,7 +354,7 @@ class FAIMGenerator(FairBase):
         self.best_coef = self.coefs[self.best_sen_exclusion].drop(columns=["perf_metric"]).loc[self.best_id - self.n_final * id_senario, :]
         self.best_optim_base_obj = self.optim_base_obj_list[self.best_sen_exclusion]
         
-        ## confidence interval
+        # confidence interval
         dat_uncertainty = self.dat_train.sample(n=np.min([50000, self.dat_train.shape[0]]), random_state=42)
         excluded_vars = self.best_sen_exclusion.split("_")
         selected_vars = [i for i in self.vars if i not in excluded_vars]
@@ -358,7 +369,7 @@ class FAIMGenerator(FairBase):
         best_se = [np.sqrt(cov[i, i]) for i in range(cov.shape[0])]
         
         # self.best_thresh = self.thresh_list[self.best_id]
-        best_results = {"best_coef": self.best_coef, "best_sen_exclusion": self.best_sen_exclusion, "best_se": best_se, "best_optim_base_obj": self.best_optim_base_obj}
+        best_results = {"best_coef": self.best_coef, "best_sen_exclusion": self.best_sen_exclusion, "best_se": best_se, "best_optim_base_obj": self.best_optim_base_obj} 
         
         return best_results, fair_idx_df
     
@@ -477,8 +488,8 @@ class FAIMGenerator(FairBase):
         else:
             shap_ori = pd.read_csv(os.path.join(output_dir, "ori.csv"), index_col=0).values.reshape(-1)
             
-        p_best = plot_bar(shap_best, feature_names=self.best_coef.index, original_feature_names=self.vars, title="Fairness-aware counterpart (FAIM)", color="steelblue") #"#D4AF37"
-        p_ori = plot_bar(shap_ori, feature_names=self.optim_results.params.index,original_feature_names=self.vars, title="Fairness-unaware counterpart (Original)", color="orange")
+        p_best = plot_bar(shap_best, feature_names=self.best_coef.index, original_feature_names=self.vars, title="Fairness-aware model (FAIM)", color="#D4AF37") 
+        p_ori = plot_bar(shap_ori, feature_names=self.optim_results.params.index,original_feature_names=self.vars, title="Fairness-unaware model (Baseline)", color="grey")
         
         f1 = pw.load_ggplot(p_best, figsize=(5, 5))
         f2 = pw.load_ggplot(p_ori, figsize=(5, 5))

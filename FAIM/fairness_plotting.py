@@ -129,23 +129,27 @@ def plot_distribution(df, s = 4):
         
         return fig
 
-def plot_scatter(df, perf, sen_var_exclusion, title, **kwargs):
-    ### basic settings
+def plot_scatter(df, perf, sen_var_exclusion, title,c1=20, c2=0.15, **kwargs):
+    ### basic settings ###
     np.random.seed(0)
     if "figsize" not in kwargs.keys():
-        figsize = (1200, 500)
+        fig_h = 400
+        figsize = [fig_h * df.shape[1] * 2.45/3, fig_h]
     else:  
         figsize = kwargs["figsize"]
-    caption_size = figsize[1] / 23 
-    fig_font_size = caption_size * 0.85
+    caption_size = figsize[1] / c1 # control font size / figure size
+    fig_caption_ratio = 0.8
+    fig_font_size = caption_size * fig_caption_ratio
     
     font_family = "Arial"
     highlight_color = "#D4AF37"
-    fig_font_unit = 0.12
-    caption_font_unit = fig_font_unit / 0.9
-    legend_pos_y = 1 + fig_font_unit #ratio 18 -> 0.12
-    subtitle_pos = [legend_pos_y+0.02, legend_pos_y+0.02+caption_font_unit]
-    xlab_pos_y = -caption_font_unit * 1.8
+    fig_font_unit =  c2 # control the relative position of elements
+    caption_font_unit = fig_font_unit * fig_caption_ratio
+    d = fig_font_unit / 8
+    legend_pos_y = 1 + fig_font_unit
+    subtitle_pos = [legend_pos_y+d, legend_pos_y+d+caption_font_unit]
+    xlab_pos_y = -fig_font_unit * 2
+    print(subtitle_pos)
     
     area_list = []
     for i, id in enumerate(df.index): 
@@ -167,6 +171,7 @@ def plot_scatter(df, perf, sen_var_exclusion, title, **kwargs):
         else:
             jitter_control[idx] = 0.02 * np.random.uniform(-1, 1)
     
+    ### plot ###
     best_id = np.arange(len(area_list))[np.argmax(area_list)]
     worst_id = np.arange(len(area_list))[np.argmin(area_list)]
     meduim_id = np.arange(len(area_list))[np.argsort(area_list)[int(len(area_list)/2)]]
@@ -174,7 +179,7 @@ def plot_scatter(df, perf, sen_var_exclusion, title, **kwargs):
     num_metrics = df.shape[1]
     num_models = df.shape[0]
     
-    fig = make_subplots(cols=num_metrics, rows=1, horizontal_spacing=0.12)
+    fig = make_subplots(cols=num_metrics, rows=1, horizontal_spacing=0.13)
     cmap = sns.light_palette("steelblue", as_cmap=False, n_colors=df.shape[0])
     cmap = cmap[::-1]
     colors = [rgb01_hex(cmap[x]) if x!=0 else highlight_color for x in ranking] 
@@ -198,7 +203,7 @@ def plot_scatter(df, perf, sen_var_exclusion, title, **kwargs):
         else:
             cases[i] = f"Exclusion of {cases[i]}"
 
-    fair_index_df = pd.DataFrame({"model id": df.index, "fair_index": area_list, "ranking": ranking, "colors": colors, "shapes": shapes, "sizes": sizes, "cases": sen_var_exclusion, "jitter": jitter_control})
+    fair_index_df = pd.DataFrame({"model id": df.index, "fair_index": area_list, "ranking": ranking, "eod": df["Equalized Odds"], "colors": colors, "shapes": shapes, "sizes": sizes, "cases": sen_var_exclusion, "jitter": jitter_control})
     
     # Add scatter plots to the subplots
     for k, s in enumerate(shapes_candidates):
@@ -213,16 +218,17 @@ def plot_scatter(df, perf, sen_var_exclusion, title, **kwargs):
             size = fair_index_df.loc[fair_index_df.shapes ==s, "sizes"] 
             fair_index = fair_index_df.loc[fair_index_df.shapes ==s, "fair_index"] 
             ids = fair_index_df.loc[fair_index_df.shapes ==s, "model id"]
+            rank_text = fair_index_df.loc[fair_index_df.shapes ==s, "ranking"]
             r = fair_index_df.loc[fair_index_df.shapes ==s, "ranking"].apply(lambda x: math.log10(x+1)).values 
             sen_case = fair_index_df.loc[fair_index_df.shapes ==s, "cases"] 
 
-            hovertext = [f"Fairness index: {f:.3f}. Model id: {i}" for f, i in zip(fair_index, ids)]
+            hovertext = [f"Fairness index: {f:.3f}. Ranking: {x}. Model id: {i}" for f, x, i in zip(fair_index, rank_text, ids)]
             fig.add_trace(go.Scatter(x=r, y=jittered_x, customdata=hovertext, mode='markers', marker=dict(color=col, symbol=s, size=size, line=dict(color=col, width=1), opacity=0.8), hovertemplate = '%{customdata}.', hoverlabel=None, hoverinfo = 'name+z', name=cases[k]), col=i+1, row=1)
             
             if i == int((df.shape[1]+0.5)/2):
-                fig.update_xaxes(tickvals=[0, 1, 2, 3], ticktext=[1, 10, 100, 1000], col=i+1, row=1)
+                fig.update_xaxes(title_text=None, tickvals=[0, 1, 2, 3], ticktext=[1, 10, 100, 1000], col=i+1, row=1, tickangle=0)
             else:
-                fig.update_xaxes(title_text=None, tickvals=[0, 1, 2, 3], ticktext=[1, 10, 100, 1000], col=i+1, row=1)
+                fig.update_xaxes(title_text=None, tickvals=[0, 1, 2, 3], ticktext=[1, 10, 100, 1000], col=i+1, row=1, tickangle=0)
             fig.update_yaxes(title_text=df.columns[i], col=i+1, row=1, showticksuffix="none", titlefont= {'size': caption_size})
             
             fig.add_vline(x=0, line_width=2, line_dash="dot", line_color=highlight_color, col=i+1, row=1)
@@ -232,7 +238,7 @@ def plot_scatter(df, perf, sen_var_exclusion, title, **kwargs):
             meduim_metric = df.loc[ranking == int(num_models/2), df.columns[i]].values[0]
             
             # add annotations
-            anno_size = caption_size - 5
+            anno_size = caption_size * 0.7
             if k == 0:
                 fig.add_hline(y=min_metric, line_width=2, line_dash="dot", line_color=highlight_color, col=i+1, row=1)
                 
@@ -257,11 +263,11 @@ def plot_scatter(df, perf, sen_var_exclusion, title, **kwargs):
     
     fig.update_layout(title=title, font = dict(family = "Arial", size=fig_font_size), hovermode="closest", width=figsize[0], height=figsize[1], showlegend=True, template="simple_white", legend = dict(x=0, y= legend_pos_y, orientation="h"))
   
-    rectangle = {'type': 'rect', 'x0': 0, 'y0': subtitle_pos[0], 'x1': 1.05, 'y1': subtitle_pos[1], 'xref': 'paper', 'yref': 'paper', 'fillcolor': 'steelblue', 'opacity': 0.1} # 'line': {'color': 'red', 'width': 2},
+    rectangle = {'type': 'rect', 'x0': -0.1, 'y0': subtitle_pos[0], 'x1': 1.1, 'y1': subtitle_pos[1], 'xref': 'paper', 'yref': 'paper', 'fillcolor': 'steelblue', 'opacity': 0.1} # 'line': {'color': 'red', 'width': 2},
     fig.add_shape(rectangle) 
-    subtitle_annotation = {'x': 0,'y': subtitle_pos[1]-0.02, 'text': f'<i> The FAIM model (i.e., fairness-aware counterpart model) is with model ID {best_id}, out of {num_models} sampled models.</i>', 'showarrow': False, 'xref': 'paper', 'yref': 'paper', 'font': {'size': caption_size}, 'align':'left'}
-    xaxis_annotation = {'x': 0.5,'y': xlab_pos_y, 'text': 'Model Rank', 'showarrow': False, 'xref': 'paper', 'yref': 'paper', 'font': {'size': fig_font_size}}
-    colorbar_title = {'x': 1.05,'y': 0.5, 'text': 'Fairness Ranking Index (FRI)', 'showarrow': False, 'xref': 'paper', 'yref': 'paper', 'font': {'size': fig_font_size}, 'textangle':90}
+    subtitle_annotation = {'x': -0.1,'y': subtitle_pos[1], 'text': f'<i> The FAIM model (i.e., fairness-aware model) is with model ID {best_id}, out of {num_models} nearly-optimal models.</i>', 'showarrow': False, 'xref': 'paper', 'yref': 'paper', 'font': {'size': caption_size*1.1}, 'align':'left'}
+    xaxis_annotation = {'x': 0.5,'y': xlab_pos_y, 'text': 'Model Rank', 'showarrow': False, 'xref': 'paper', 'yref': 'paper','font': {'size': caption_size}}
+    colorbar_title = {'x': 1.05,'y': 0.5, 'text': 'Fairness Ranking Index (FRI)', 'showarrow': False, 'xref': 'paper', 'yref': 'paper', 'font': {'size': anno_size*0.9}, 'textangle':90}
     fig.add_annotation(subtitle_annotation)
     fig.add_annotation(xaxis_annotation)
     fig.add_annotation(colorbar_title)
@@ -273,6 +279,7 @@ def plot_scatter(df, perf, sen_var_exclusion, title, **kwargs):
         else:
             trace.update(showlegend=False)
     # fig.show()
+    
     return fig, fair_index_df
     
 def plot_radar(df, thresh_show, title, **kwargs):
@@ -366,7 +373,7 @@ def plot_bar(shap_values, feature_names, original_feature_names, coef=None, titl
     
     df = df.loc[df["Var"] != "const", :]
     df = df.sort_values(by='order', ascending=True)
-    feature_mapping = {"Age": "V1", "ESI": "V2", "Temperature": "V3", "SPO2": "V4", "Hospitalizations last year": "V5", "Pain scale": "V6", "Race": "V7", "Gender": "V8", "Heartrate": "V9", "Respirate rate": "V10", "Diastolic blood pressure": "V11", "Systolic blood pressure": "V12"}
+    feature_mapping = {"Age": "V1", "ESI": "V2", "Temperature": "V3", "SPO2": "V4", "Hospitalizations last year": "V5", "Pain scale": "V6", "Race": "V7", "Sex": "V8", "Heartrate": "V9", "Respirate rate": "V10", "Diastolic blood pressure": "V11", "Systolic blood pressure": "V12"}
     # df["Var"] = df["Var"].map(feature_mapping)
     df['Var'] = pd.Categorical(df['Var'], categories=df["Var"].tolist(), ordered=True)
 

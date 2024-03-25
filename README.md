@@ -24,7 +24,7 @@ To address these challenges, we introduce the Fairness-Aware Interpretable Model
 
 <div class="figure" style="text-align: center">
 
-<img src="figs/framework.png" width="100%"/>
+<img src="figs/manuscript_framework_5.png" width="100%"/>
 
 </div>
 
@@ -185,7 +185,8 @@ clacompare_df = pd.concat([clametrics_ori, clametrics_faim, clametrics_rw])
 | FAIM      | 0.783 | 0.786 | 0.789  |
 
 
-
+## Citation
+- Liu, M., Ning, Y., Ke, Y., Shang, Y., Chakraborty, B., Ong, M. E. H., Vaughan, R. & Liu, N. (2024). [Fairness-Aware Interpretable Modeling (FAIM) for Trustworthy Machine Learning in Healthcare.](https://arxiv.org/abs/2403.05235) arXiv preprint arXiv:2403.05235.
 ## Contact
 
 - Mingxuan Liu (Email: <mingxuan.liu@u.duke.nus.edu>)
