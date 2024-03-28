@@ -86,7 +86,6 @@ class FAIMGenerator(FairBase):
         if post:
             self.post = post
             self.post_method = post_method
-            # self.rw_model, self.rw_results, self.rw_weights = self.prost_mitigate()
 
         self.optim_obj = self.optimal_model(selected_vars, selected_vars_cat)
         self.optim_results = self.optim_obj.model_optim
@@ -129,9 +128,10 @@ class FAIMGenerator(FairBase):
             y=self.dat_train[self.y_name],
             x_names_cat=selected_vars_cat,
             output_dir=self.output_dir,
-            sample_w=(
-                self.rw_weights if self.pre and self.pre_method == "rw" else None
-            ),  # [np.mean(dat_train[y_name]) if i == 0 else 1-np.mean(dat_train[y_name]) for i in dat_train[y_name]]
+            criterion=self.criterion,
+            # sample_w=(
+            #     self.rw_weights if self.pre and self.pre_method == "rw" else None
+            # ) # instance_weights
         )
         return model_object
 
@@ -150,15 +150,13 @@ class FAIMGenerator(FairBase):
         if epsilon is None:
             epsilon = self.epsilon
 
-        u1, u2 = optim_base_obj.init_hyper_params(m=m, criterion=self.criterion)
+        u1, u2 = optim_base_obj.init_hyper_params(m=m)
         optim_base_obj.draw_models(
             u1=u1,
             u2=u2,
             m=self.m,
             n_final=self.n_final,
-            random_state=1234,
-            epsilon=epsilon,
-            criterion=self.criterion,
+            random_state=1234
         )
         coefs = pd.read_csv(
             os.path.join(self.output_dir, "models_near_optim.csv"), index_col=0
@@ -192,7 +190,6 @@ class FAIMGenerator(FairBase):
             self.weighted = weighted
             self.weights = weights
         self.dat_expl = dat_expl
-        # thresh_list = []
 
         optim_base_results = optim_base_obj.model_optim
         optim_base_model = optim_base_obj.model_optim.model

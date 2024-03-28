@@ -26,7 +26,7 @@ setup(
         "shap>=0.43.0",
         "kaleido>=0.2.1",
         # "ShapleyVIC>=1.0.0",
-        "git+'https://github.com/nliulab/ShapleyVIC#egg=ShapleyVIC&subdirectory=python'"
+        "ShapleyVIC@git+https://github.com/nliulab/ShapleyVIC#egg=ShapleyVIC&subdirectory=python"
     ],
     python_requires='>=3.6',
 )
