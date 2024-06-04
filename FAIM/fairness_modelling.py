@@ -83,6 +83,7 @@ class FAIMGenerator(FairBase):
         if pre:
             self.pre_method = pre_method
             self.rw_model, self.rw_results, self.rw_weights = self.pre_mitigate()
+            plt.hist(self.rw_weights)
         if post:
             self.post = post
             self.post_method = post_method
@@ -129,9 +130,9 @@ class FAIMGenerator(FairBase):
             x_names_cat=selected_vars_cat,
             output_dir=self.output_dir,
             criterion=self.criterion,
-            # sample_w=(
-            #     self.rw_weights if self.pre and self.pre_method == "rw" else None
-            # ) # instance_weights
+            sample_w=(
+                self.rw_weights if self.pre and self.pre_method == "Reweigh" else None
+            ) # instance_weights
         )
         return model_object
 
@@ -390,6 +391,8 @@ class FAIMGenerator(FairBase):
         self,
         targeted_metrics=["Average Accuracy", "Statistical Parity", "Equalized Odds"],
         thresh_show=0.3,
+        best_id=None,
+        best_sen_exclusion=None,
         **kwargs,
     ):
         """Select the best model regarding fairness
@@ -432,9 +435,15 @@ class FAIMGenerator(FairBase):
         for i, id in enumerate(df.index):
             values = df.loc[id, :]
             FAIM_area_list.append(fairarea(values))
-
-        self.best_id = df.index[np.argmin(FAIM_area_list)]
-        self.best_sen_exclusion = sen_var_exclusion.iloc[np.argmin(FAIM_area_list)]
+        ranking = np.argsort(np.argsort(FAIM_area_list))
+        
+        if best_id is not None:
+            assert best_sen_exclusion is not None
+            self.best_id = best_id
+            self.best_sen_exclusion = best_sen_exclusion
+        else:
+            self.best_id = df.index[np.where(ranking == 0)][0]
+            self.best_sen_exclusion = sen_var_exclusion.iloc[np.argmin(FAIM_area_list)]
 
         id_senario = [
             index
@@ -620,14 +629,14 @@ class FAIMGenerator(FairBase):
             feature_names=self.best_coef.index,
             original_feature_names=self.vars,
             title="Fairness-aware model (FAIM)",
-            color="#D4AF37"
+            color="steelblue" #"#D4AF37"
         )
         p_ori = plot_bar(
             shap_ori,
             feature_names=self.optim_results.params.index,
             original_feature_names=self.vars,
             title="Fairness-unaware model (Baseline)",
-            color="grey"
+            color="orange" #"grey"
         )
 
         f1 = pw.load_ggplot(p_best, figsize=(5, 5))

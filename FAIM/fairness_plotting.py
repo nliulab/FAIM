@@ -178,7 +178,6 @@ def plot_scatter(df, perf, sen_var_exclusion, title, c1=20, c2=0.15, **kwargs):
     legend_pos_y = 1 + fig_font_unit
     subtitle_pos = [legend_pos_y + d, legend_pos_y + d + caption_font_unit]
     xlab_pos_y = -fig_font_unit * 2
-    print(subtitle_pos)
 
     area_list = []
     for i, id in enumerate(df.index):
@@ -201,11 +200,9 @@ def plot_scatter(df, perf, sen_var_exclusion, title, c1=20, c2=0.15, **kwargs):
             jitter_control[idx] = 0.02 * np.random.uniform(-1, 1)
 
     ### plot ###
-    best_id = np.arange(len(area_list))[np.argmax(area_list)]
-    worst_id = np.arange(len(area_list))[np.argmin(area_list)]
-    meduim_id = np.arange(len(area_list))[
-        np.argsort(area_list)[int(len(area_list) / 2)]
-    ]
+    best_id = df.index[np.where(ranking == 0)][0]
+    worst_id = df.index[np.argmin(area_list)]
+    meduim_id = df.index[np.argsort(area_list)[int(len(area_list) / 2)]]
 
     num_metrics = df.shape[1]
     num_models = df.shape[0]
@@ -524,7 +521,8 @@ def plot_radar(df, thresh_show, title, **kwargs):
             )
         )
 
-    best_id = df.index[np.argmin(area_list)]
+    ranking = np.argsort(np.argsort(area_list))
+    best_id = df.index[np.where(ranking == 0)][0]
     print(
         f"The best model is No.{best_id} with metrics on validation set:\n {df.loc[best_id, :]}"
     )

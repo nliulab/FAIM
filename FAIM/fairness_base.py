@@ -15,6 +15,7 @@ from sklearn.linear_model import LogisticRegression
 
 from .utils import *
 from .fairness_evaluation import *
+import matplotlib.pyplot as plt
 
 seed = 1234
 np.random.seed(seed)
@@ -112,7 +113,7 @@ class FairBase:
         if len(self.sen_name) > 1:
             sen_var = combine_sen(dat, self.sen_name)
         else:
-            sen_var = dat[self.sen_name]
+            sen_var = dat[self.sen_name[0]]
 
         y = dat[self.y_name]
 
@@ -203,7 +204,6 @@ class FairBase:
         Returns:
             model results that can be used for prediction
         """
-
         self.method = method
         self.method_type = method_type
 
@@ -257,9 +257,8 @@ class FairBase:
                     family=sm.families.Binomial(),
                     freq_weights=rw_train.instance_weights,
                 )
-
+                plt.hist(rw_train.instance_weights)
                 rw_results = rw_model.fit()
-
                 return rw_model, rw_results, rw_train.instance_weights
             else:
                 raise ValueError(
@@ -360,6 +359,10 @@ class FairBase:
             fairmetrics (data frame): fairness metrics
             fairsummary (data frame): fairness summary for each subgroup
         """
+        if "without_sen" in kwargs.keys():
+            without_sen = kwargs["without_sen"]
+        else:
+            without_sen = self.without_sen
         x_with_constant_test, sen_var, y_test = self.data_process(dat_test)
         prob_test = None
         thresh = None
